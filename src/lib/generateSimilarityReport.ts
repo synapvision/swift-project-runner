@@ -17,8 +17,14 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
   const maxW = pw - m * 2;
   let y = 0;
 
+  const borderM = 10; // border margin from page edge
+  const headerHeight = 22;
+  const footerHeight = 16;
+  const contentTop = headerHeight + 6;
+  const contentBottom = ph - footerHeight - 4;
+
   const addPageIfNeeded = (needed: number) => {
-    if (y + needed > ph - 25) { doc.addPage(); y = 25; }
+    if (y + needed > contentBottom) { doc.addPage(); y = contentTop; }
   };
 
   const fileName = title || "Document";
@@ -38,6 +44,39 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
     [103, 58, 183], [0, 188, 212], [255, 87, 34], [63, 81, 181],
     [139, 195, 74],
   ];
+
+  // ─── HEADER / FOOTER / BORDER HELPERS ───
+  const drawPageBorder = () => {
+    doc.setDrawColor(180, 180, 180);
+    doc.setLineWidth(0.5);
+    doc.rect(borderM, borderM, pw - borderM * 2, ph - borderM * 2);
+    doc.setLineWidth(0.2);
+  };
+
+  const drawHeader = (pageNum: number, totalPages: number, sectionName: string) => {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(50, 50, 50);
+    doc.text("PlagiaShield", m, 18);
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Page ${pageNum} of ${totalPages}  |  ${sectionName}`, m + 38, 18);
+    doc.text(`ID: ${submissionId}`, pw - m - 40, 18);
+    doc.setDrawColor(200, 200, 200);
+    doc.line(m, headerHeight, pw - m, headerHeight);
+  };
+
+  const drawFooter = (pageNum: number, totalPages: number) => {
+    const fy = ph - footerHeight;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(m, fy, pw - m, fy);
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(140, 140, 140);
+    doc.text("PlagiaShield Similarity Report", m, fy + 8);
+    doc.text(`Page ${pageNum} of ${totalPages}`, pw - m - 25, fy + 8);
+  };
 
   // ─── PAGE 1: COVER PAGE ───
   y = ph * 0.3;
@@ -77,7 +116,7 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
 
   // ─── PAGES 2+: TEXT WITH HIGHLIGHTED MATCHES ───
   doc.addPage();
-  y = 25;
+  y = contentTop;
 
   const lineHeight = 5;
   const textToRender = text.slice(0, 50000);
@@ -124,7 +163,6 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
 
     const hl = highlights.find((h) => wordStart < h.end && wordEnd > h.start);
     if (hl) {
-      // Colored highlight background
       doc.setFillColor(hl.color[0], hl.color[1], hl.color[2]);
       doc.setGState(new (doc as any).GState({ opacity: 0.12 }));
       doc.rect(lineX - 0.3, y - 3.5, wordW + 0.6, 4.5, "F");
@@ -144,7 +182,7 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
 
   // ─── ORIGINALITY REPORT PAGE ───
   doc.addPage();
-  y = 25;
+  y = contentTop;
 
   doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
@@ -260,7 +298,7 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
 
   // ─── DETAILED SOURCE BREAKDOWN PAGE ───
   doc.addPage();
-  y = 25;
+  y = contentTop;
 
   doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
@@ -332,7 +370,7 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
 
   // ─── GRADEMARK REPORT PAGE ───
   doc.addPage();
-  y = 25;
+  y = contentTop;
 
   doc.setFontSize(16);
   doc.setFont("helvetica", "normal");
@@ -381,6 +419,26 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
     doc.setDrawColor(220, 220, 220);
     doc.line(m, y, pw - m, y);
     y += 8;
+  }
+
+  // ─── APPLY BORDERS, HEADERS & FOOTERS TO ALL PAGES ───
+  const totalPages = doc.getNumberOfPages();
+  const sectionNames = ["Cover Page", "Highlighted Text", "Originality Report", "Source Details", "GradeMark Report"];
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    drawPageBorder();
+    // Determine section name based on page number
+    let section = "Similarity Report";
+    if (p === 1) section = sectionNames[0];
+    else if (p === totalPages) section = sectionNames[4];
+    else if (p === totalPages - 1) section = sectionNames[3];
+    else if (p === totalPages - 2) section = sectionNames[2];
+    else section = sectionNames[1];
+    
+    if (p > 1) {
+      drawHeader(p, totalPages, section);
+    }
+    drawFooter(p, totalPages);
   }
 
   doc.save("PlagiaShield_Similarity_Report.pdf");
