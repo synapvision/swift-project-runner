@@ -241,6 +241,23 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
     doc.line(m, y - 3, pw - m, y - 3);
   });
 
+  // Exclude settings after primary sources
+  y += 10;
+  addPageIfNeeded(20);
+  doc.setDrawColor(200, 200, 200);
+  doc.line(m, y, pw - m, y);
+  y += 6;
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(120, 120, 120);
+  doc.text("Exclude quotes", m, y);
+  doc.text("Off", m + 45, y);
+  doc.text("Exclude matches", pw / 2, y);
+  doc.text("Off", pw / 2 + 45, y);
+  y += 5;
+  doc.text("Exclude bibliography", m, y);
+  doc.text("On", m + 45, y);
+
   // ─── GRADEMARK REPORT PAGE ───
   doc.addPage();
   y = 25;
