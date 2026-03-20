@@ -11,8 +11,9 @@ import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import jsPDF from "jspdf";
 import { extractTextFromFile } from "@/lib/fileExtractor";
+import { generateAIWritingReport } from "@/lib/generateAIWritingReport";
+import { generateSimilarityReport } from "@/lib/generateSimilarityReport";
 
 interface PlagiarismReport {
   similarity_score: number;
@@ -43,261 +44,7 @@ function SimilarityDonut({ percent, label }: { percent: number; label: string })
   );
 }
 
-function generatePdfReport(report: PlagiarismReport, text: string) {
-  const doc = new jsPDF();
-  const pw = doc.internal.pageSize.getWidth();
-  const ph = doc.internal.pageSize.getHeight();
-  const m = 15;
-  const maxW = pw - m * 2;
-  let y = 0;
 
-  const addPageIfNeeded = (needed: number) => {
-    if (y + needed > ph - 15) { doc.addPage(); y = 15; }
-  };
-
-  // Source colors for numbered badges
-  const sourceColors: [number, number, number][] = [
-    [220, 38, 38], [156, 39, 176], [33, 150, 243], [76, 175, 80],
-    [255, 152, 0], [0, 150, 136], [121, 85, 72], [96, 125, 139],
-  ];
-
-  // ─── PAGE 1: ORIGINALITY REPORT ───
-  // Red header bar
-  y = 15;
-  doc.setFillColor(200, 30, 30);
-  doc.rect(m, y, maxW, 8, "F");
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(255, 255, 255);
-  doc.text("ORIGINALITY REPORT", m + 3, y + 5.5);
-  y += 14;
-
-  // Big similarity score
-  doc.setFontSize(48);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(30, 30, 30);
-  doc.text(`${report.similarity_score}`, m, y + 16);
-  const bigW = doc.getTextWidth(`${report.similarity_score}`);
-  doc.setFontSize(18);
-  doc.text("%", m + bigW, y + 16);
-  y += 20;
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(30, 30, 30);
-  doc.text("SIMILARITY INDEX", m, y);
-
-  // Secondary scores in a row
-  const secScores = [
-    { val: report.paraphrase_score, label: "PARAPHRASED" },
-    { val: report.ai_probability, label: "AI DETECTED" },
-    { val: report.flagged_sections.length, label: "FLAGGED SECTIONS" },
-  ];
-  let sx = m + 55;
-  secScores.forEach((s) => {
-    doc.setFontSize(22);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(30, 30, 30);
-    doc.text(`${s.val}`, sx, y - 4);
-    const sw = doc.getTextWidth(`${s.val}`);
-    doc.setFontSize(11);
-    doc.text(typeof s.val === "number" && s.label !== "FLAGGED SECTIONS" ? "%" : "", sx + sw, y - 4);
-    doc.setFontSize(6);
-    doc.setFont("helvetica", "bold");
-    doc.text(s.label, sx, y);
-    sx += 50;
-  });
-
-  y += 12;
-  doc.setDrawColor(200, 200, 200);
-  doc.line(m, y, pw - m, y);
-  y += 8;
-
-  // ─── PRIMARY SOURCES ───
-  doc.setFillColor(200, 30, 30);
-  doc.rect(m, y, maxW, 7, "F");
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(255, 255, 255);
-  doc.text("PRIMARY SOURCES", m + 3, y + 5);
-  y += 12;
-
-  // List flagged sections as "sources"
-  report.flagged_sections.forEach((section, i) => {
-    addPageIfNeeded(20);
-    const color = sourceColors[i % sourceColors.length];
-
-    // Numbered badge
-    doc.setFillColor(color[0], color[1], color[2]);
-    doc.roundedRect(m, y - 4, 8, 8, 1, 1, "F");
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(255, 255, 255);
-    doc.text(`${i + 1}`, m + 2.8, y + 1);
-
-    // Source info
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(color[0], color[1], color[2]);
-    const reasonText = section.reason.length > 60 ? section.reason.slice(0, 60) + "..." : section.reason;
-    doc.text(reasonText, m + 12, y);
-
-    // Risk badge on the right
-    const riskLabel = section.risk.toUpperCase();
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(60, 60, 60);
-    const pctText = riskLabel === "HIGH" ? "H" : riskLabel === "MEDIUM" ? "M" : "L";
-    doc.text(pctText, pw - m - 10, y);
-
-    // Type label
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(120, 120, 120);
-    doc.text(section.risk === "high" ? "High Risk" : section.risk === "medium" ? "Medium Risk" : "Low Risk", m + 12, y + 5);
-
-    y += 16;
-
-    // Divider
-    doc.setDrawColor(230, 230, 230);
-    doc.line(m, y - 4, pw - m, y - 4);
-  });
-
-  // ─── PAGE 2+: ANALYZED TEXT WITH HIGHLIGHTS ───
-  doc.addPage();
-  y = 15;
-
-  // Header
-  doc.setFillColor(200, 30, 30);
-  doc.rect(m, y, maxW, 8, "F");
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(255, 255, 255);
-  doc.text("ANALYZED TEXT", m + 3, y + 5.5);
-  y += 14;
-
-  // Render text with highlighted flagged sections
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  const lineHeight = 4.5;
-  const textToRender = text.slice(0, 5000);
-
-  // Build highlight map
-  const highlights: { start: number; end: number; color: [number, number, number]; idx: number }[] = [];
-  report.flagged_sections.forEach((section, i) => {
-    const idx = textToRender.toLowerCase().indexOf(section.text.toLowerCase().slice(0, 50));
-    if (idx >= 0) {
-      highlights.push({
-        start: idx,
-        end: idx + Math.min(section.text.length, textToRender.length - idx),
-        color: sourceColors[i % sourceColors.length],
-        idx: i,
-      });
-    }
-  });
-  highlights.sort((a, b) => a.start - b.start);
-
-  // Split into words and render
-  const words = textToRender.split(/(\s+)/);
-  let charPos = 0;
-  let lineX = m;
-
-  words.forEach((word) => {
-    const wordStart = charPos;
-    const wordEnd = charPos + word.length;
-    charPos = wordEnd;
-
-    if (word.match(/^\s+$/)) {
-      lineX += doc.getTextWidth(" ");
-      if (word.includes("\n")) { lineX = m; y += lineHeight; addPageIfNeeded(lineHeight + 2); }
-      return;
-    }
-
-    const wordW = doc.getTextWidth(word);
-    if (lineX + wordW > pw - m) {
-      lineX = m;
-      y += lineHeight;
-      addPageIfNeeded(lineHeight + 2);
-    }
-
-    // Check if word falls in a highlight
-    const hl = highlights.find((h) => wordStart < h.end && wordEnd > h.start);
-    if (hl) {
-      // Draw highlight background
-      doc.setFillColor(hl.color[0], hl.color[1], hl.color[2]);
-      doc.setGState(new (doc as any).GState({ opacity: 0.15 }));
-      doc.rect(lineX - 0.3, y - 3.2, wordW + 0.6, 4.2, "F");
-      doc.setGState(new (doc as any).GState({ opacity: 1 }));
-
-      // Colored text
-      doc.setTextColor(hl.color[0], hl.color[1], hl.color[2]);
-      doc.setFont("helvetica", "bold");
-      doc.text(word, lineX, y);
-      doc.setFont("helvetica", "normal");
-    } else {
-      doc.setTextColor(40, 40, 40);
-      doc.text(word, lineX, y);
-    }
-
-    lineX += wordW + doc.getTextWidth(" ");
-  });
-
-  // ─── SUMMARY & RECOMMENDATIONS ───
-  y += 15;
-  addPageIfNeeded(30);
-  doc.setDrawColor(200, 200, 200);
-  doc.line(m, y, pw - m, y);
-  y += 8;
-
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(30, 30, 30);
-  doc.text("Summary", m, y);
-  y += 7;
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(60, 60, 60);
-  const summaryLines = doc.splitTextToSize(report.summary, maxW);
-  summaryLines.forEach((line: string) => {
-    addPageIfNeeded(6);
-    doc.text(line, m, y);
-    y += 4.5;
-  });
-
-  if (report.recommendations.length > 0) {
-    y += 8;
-    addPageIfNeeded(20);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(30, 30, 30);
-    doc.text("Recommendations", m, y);
-    y += 7;
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(60, 60, 60);
-    report.recommendations.forEach((rec) => {
-      addPageIfNeeded(8);
-      const recLines = doc.splitTextToSize(`•  ${rec}`, maxW);
-      recLines.forEach((line: string) => {
-        addPageIfNeeded(6);
-        doc.text(line, m, y);
-        y += 4.5;
-      });
-      y += 2;
-    });
-  }
-
-  // Footer on each page
-  const totalPages = doc.getNumberOfPages();
-  for (let p = 1; p <= totalPages; p++) {
-    doc.setPage(p);
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(160, 160, 160);
-    doc.text(`PlagiaShield Report  •  Generated ${new Date().toLocaleDateString()}  •  Page ${p} of ${totalPages}`, m, ph - 8);
-  }
-
-  doc.save("PlagiaShield_Report.pdf");
-}
 
 export default function Dashboard() {
   const { signOut, session } = useAuth();
@@ -534,9 +281,14 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-foreground">Report</h3>
               {report && (
-                <Button variant="outline" size="sm" onClick={() => generatePdfReport(report, text)} className="gap-1.5">
-                  <Download className="w-3.5 h-3.5" /> PDF
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => generateAIWritingReport(report, text)} className="gap-1.5">
+                    <Download className="w-3.5 h-3.5" /> AI Report
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => generateSimilarityReport(report, text)} className="gap-1.5">
+                    <Download className="w-3.5 h-3.5" /> Similarity
+                  </Button>
+                </div>
               )}
             </div>
 
