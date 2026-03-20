@@ -383,22 +383,5 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
     y += 8;
   }
 
-  // Exclude settings at bottom
-  addPageIfNeeded(20);
-  y += 10;
-  doc.setDrawColor(200, 200, 200);
-  doc.line(m, y, pw - m, y);
-  y += 6;
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(120, 120, 120);
-  doc.text("Exclude quotes", m, y);
-  doc.text("Off", m + 45, y);
-  doc.text("Exclude matches", pw / 2, y);
-  doc.text("Off", pw / 2 + 45, y);
-  y += 5;
-  doc.text("Exclude bibliography", m, y);
-  doc.text("On", m + 45, y);
-
   doc.save("PlagiaShield_Similarity_Report.pdf");
 }
