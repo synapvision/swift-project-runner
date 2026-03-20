@@ -258,6 +258,78 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
   doc.text("Exclude bibliography", m, y);
   doc.text("On", m + 45, y);
 
+  // ─── DETAILED SOURCE BREAKDOWN PAGE ───
+  doc.addPage();
+  y = 25;
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(80, 80, 80);
+  doc.text(fileName, m, y);
+  y += 3;
+  doc.setDrawColor(180, 180, 180);
+  doc.line(m, y, pw - m, y);
+  y += 6;
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(220, 60, 60);
+  doc.text("SOURCE DETAILS", m, y);
+  y += 3;
+  doc.setDrawColor(180, 180, 180);
+  doc.line(m, y, pw - m, y);
+  y += 10;
+
+  report.flagged_sections.forEach((section, i) => {
+    addPageIfNeeded(40);
+    const color = sourceColors[i % sourceColors.length];
+
+    // Numbered badge
+    doc.setFillColor(color[0], color[1], color[2]);
+    doc.roundedRect(m, y - 4, 9, 9, 1.5, 1.5, "F");
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    const numStr = `${i + 1}`;
+    doc.text(numStr, m + 4.5 - doc.getTextWidth(numStr) / 2, y + 1.5);
+
+    // Source name
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(color[0], color[1], color[2]);
+    const reasonFull = section.reason.length > 70 ? section.reason.slice(0, 70) + "..." : section.reason;
+    doc.text(reasonFull, m + 14, y);
+
+    // Type tag on right
+    const typeTag = section.risk === "high" ? "Internet Source" : section.risk === "medium" ? "Publication" : "Student Paper";
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    const tagW = doc.getTextWidth(typeTag) + 6;
+    const tagColor: [number, number, number] = section.risk === "high" ? [220, 60, 60] : section.risk === "medium" ? [33, 150, 243] : [255, 152, 0];
+    doc.setFillColor(tagColor[0], tagColor[1], tagColor[2]);
+    doc.roundedRect(pw - m - tagW, y - 4, tagW, 7, 1.5, 1.5, "F");
+    doc.text(typeTag, pw - m - tagW + 3, y + 0.5);
+
+    y += 8;
+
+    // Flagged text excerpt
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(100, 100, 100);
+    const excerptLines = doc.splitTextToSize(`"${section.text.slice(0, 200)}${section.text.length > 200 ? '...' : ''}"`, maxW - 14);
+    excerptLines.forEach((line: string) => {
+      addPageIfNeeded(6);
+      doc.text(line, m + 14, y);
+      y += 5;
+    });
+
+    y += 3;
+    doc.setDrawColor(230, 230, 230);
+    doc.line(m, y, pw - m, y);
+    y += 8;
+  });
+
   // ─── GRADEMARK REPORT PAGE ───
   doc.addPage();
   y = 25;
@@ -310,23 +382,6 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
     doc.line(m, y, pw - m, y);
     y += 8;
   }
-
-  // Exclude settings at bottom
-  addPageIfNeeded(20);
-  y += 10;
-  doc.setDrawColor(200, 200, 200);
-  doc.line(m, y, pw - m, y);
-  y += 6;
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(120, 120, 120);
-  doc.text("Exclude quotes", m, y);
-  doc.text("Off", m + 45, y);
-  doc.text("Exclude matches", pw / 2, y);
-  doc.text("Off", pw / 2 + 45, y);
-  y += 5;
-  doc.text("Exclude bibliography", m, y);
-  doc.text("On", m + 45, y);
 
   doc.save("PlagiaShield_Similarity_Report.pdf");
 }
