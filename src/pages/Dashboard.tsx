@@ -11,8 +11,9 @@ import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import jsPDF from "jspdf";
 import { extractTextFromFile } from "@/lib/fileExtractor";
+import { generateAIWritingReport } from "@/lib/generateAIWritingReport";
+import { generateSimilarityReport } from "@/lib/generateSimilarityReport";
 
 interface PlagiarismReport {
   similarity_score: number;
