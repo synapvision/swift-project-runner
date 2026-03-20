@@ -281,9 +281,14 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-foreground">Report</h3>
               {report && (
-                <Button variant="outline" size="sm" onClick={() => generatePdfReport(report, text)} className="gap-1.5">
-                  <Download className="w-3.5 h-3.5" /> PDF
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => generateAIWritingReport(report, text)} className="gap-1.5">
+                    <Download className="w-3.5 h-3.5" /> AI Report
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => generateSimilarityReport(report, text)} className="gap-1.5">
+                    <Download className="w-3.5 h-3.5" /> Similarity
+                  </Button>
+                </div>
               )}
             </div>
 
