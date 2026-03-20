@@ -17,14 +17,20 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
   const maxW = pw - m * 2;
   let y = 0;
 
-  const borderM = 10; // border margin from page edge
+  const borderM = 12;
   const headerHeight = 22;
   const footerHeight = 16;
   const contentTop = headerHeight + 6;
   const contentBottom = ph - footerHeight - 4;
 
+  // Track which pages are "text pages" (uploaded document text)
+  const textPages: Set<number> = new Set();
+
   const addPageIfNeeded = (needed: number) => {
-    if (y + needed > contentBottom) { doc.addPage(); y = contentTop; }
+    if (y + needed > contentBottom) {
+      doc.addPage();
+      y = contentTop;
+    }
   };
 
   const fileName = title || "Document";
@@ -46,9 +52,9 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
   ];
 
   // ─── HEADER / FOOTER / BORDER HELPERS ───
-  const drawPageBorder = () => {
-    doc.setDrawColor(180, 180, 180);
-    doc.setLineWidth(0.5);
+  const drawTextPageBorder = () => {
+    doc.setDrawColor(160, 160, 160);
+    doc.setLineWidth(0.4);
     doc.rect(borderM, borderM, pw - borderM * 2, ph - borderM * 2);
     doc.setLineWidth(0.2);
   };
@@ -114,11 +120,11 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
     y += 6;
   });
 
-  // ─── PAGES 2+: TEXT WITH HIGHLIGHTED MATCHES ───
+  // ─── PAGES 2+: TEXT WITH HIGHLIGHTED MATCHES (STRUCTURED) ───
   doc.addPage();
+  const textStartPage = doc.getNumberOfPages();
   y = contentTop;
 
-  const lineHeight = 5;
   const textToRender = text.slice(0, 50000);
 
   // Build highlight ranges from flagged sections
@@ -137,48 +143,95 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
   });
   highlights.sort((a, b) => a.start - b.start);
 
-  // Render text word by word with highlights
-  doc.setFontSize(9);
-  const words = textToRender.split(/(\s+)/);
-  let charPos = 0;
-  let lineX = m;
+  // Split text into paragraphs for structured rendering
+  const paragraphs = textToRender.split(/\n\s*\n|\n/);
+  const lineHeight = 5;
+  let globalCharPos = 0;
 
-  words.forEach((word) => {
-    const wordStart = charPos;
-    const wordEnd = charPos + word.length;
-    charPos = wordEnd;
-
-    if (word.match(/^\s+$/)) {
-      lineX += doc.getTextWidth(" ");
-      if (word.includes("\n")) { lineX = m; y += lineHeight; addPageIfNeeded(lineHeight + 2); }
+  paragraphs.forEach((para, paraIdx) => {
+    const trimmedPara = para.trim();
+    if (!trimmedPara) {
+      globalCharPos += para.length + 1;
       return;
     }
 
-    const wordW = doc.getTextWidth(word);
-    if (lineX + wordW > pw - m) {
-      lineX = m;
-      y += lineHeight;
-      addPageIfNeeded(lineHeight + 2);
+    // Check if paragraph looks like a heading (short, no period at end, or all caps)
+    const isHeading = trimmedPara.length < 80 && !trimmedPara.endsWith(".") && !trimmedPara.endsWith(",");
+
+    if (paraIdx > 0) {
+      // Paragraph spacing
+      y += isHeading ? 10 : 6;
+      addPageIfNeeded(lineHeight + 4);
     }
 
-    const hl = highlights.find((h) => wordStart < h.end && wordEnd > h.start);
-    if (hl) {
-      doc.setFillColor(hl.color[0], hl.color[1], hl.color[2]);
-      doc.setGState(new (doc as any).GState({ opacity: 0.12 }));
-      doc.rect(lineX - 0.3, y - 3.5, wordW + 0.6, 4.5, "F");
-      doc.setGState(new (doc as any).GState({ opacity: 1 }));
-
-      doc.setTextColor(hl.color[0], hl.color[1], hl.color[2]);
-      doc.setFont("helvetica", "normal");
-      doc.text(word, lineX, y);
+    if (isHeading) {
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
     } else {
-      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(9.5);
       doc.setFont("helvetica", "normal");
-      doc.text(word, lineX, y);
     }
 
-    lineX += wordW + doc.getTextWidth(" ");
+    // Render paragraph word by word with highlights
+    const words = trimmedPara.split(/(\s+)/);
+    let lineX = m;
+    const paraStartCharPos = textToRender.indexOf(trimmedPara, Math.max(0, globalCharPos - 5));
+    let charPos = paraStartCharPos >= 0 ? paraStartCharPos : globalCharPos;
+
+    words.forEach((word) => {
+      const wordStart = charPos;
+      const wordEnd = charPos + word.length;
+      charPos = wordEnd;
+
+      if (word.match(/^\s+$/)) {
+        lineX += doc.getTextWidth(" ");
+        return;
+      }
+
+      const wordW = doc.getTextWidth(word);
+      if (lineX + wordW > pw - m) {
+        lineX = m;
+        y += lineHeight;
+        addPageIfNeeded(lineHeight + 2);
+      }
+
+      const hl = highlights.find((h) => wordStart < h.end && wordEnd > h.start);
+      if (hl) {
+        doc.setFillColor(hl.color[0], hl.color[1], hl.color[2]);
+        doc.setGState(new (doc as any).GState({ opacity: 0.12 }));
+        doc.rect(lineX - 0.3, y - 3.5, wordW + 0.6, 4.5, "F");
+        doc.setGState(new (doc as any).GState({ opacity: 1 }));
+
+        doc.setTextColor(hl.color[0], hl.color[1], hl.color[2]);
+        if (isHeading) {
+          doc.setFont("helvetica", "bold");
+        } else {
+          doc.setFont("helvetica", "normal");
+        }
+        doc.text(word, lineX, y);
+      } else {
+        doc.setTextColor(50, 50, 50);
+        if (isHeading) {
+          doc.setFont("helvetica", "bold");
+        } else {
+          doc.setFont("helvetica", "normal");
+        }
+        doc.text(word, lineX, y);
+      }
+
+      lineX += wordW + doc.getTextWidth(" ");
+    });
+
+    // Move to next line after paragraph
+    y += lineHeight;
+    globalCharPos += para.length + 1;
   });
+
+  const textEndPage = doc.getNumberOfPages();
+  // Record all text pages
+  for (let p = textStartPage; p <= textEndPage; p++) {
+    textPages.add(p);
+  }
 
   // ─── ORIGINALITY REPORT PAGE ───
   doc.addPage();
@@ -193,7 +246,6 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
   doc.line(m, y, pw - m, y);
   y += 6;
 
-  // "ORIGINALITY REPORT" label
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(220, 60, 60);
@@ -244,7 +296,6 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
     addPageIfNeeded(25);
     const color = sourceColors[i % sourceColors.length];
 
-    // Numbered badge
     doc.setFillColor(color[0], color[1], color[2]);
     doc.roundedRect(m, y - 4, 9, 9, 1.5, 1.5, "F");
     doc.setFontSize(9);
@@ -253,20 +304,17 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
     const numStr = `${i + 1}`;
     doc.text(numStr, m + 4.5 - doc.getTextWidth(numStr) / 2, y + 1.5);
 
-    // Source name
     doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(color[0], color[1], color[2]);
     const reasonText = section.reason.length > 55 ? section.reason.slice(0, 55) + "..." : section.reason;
     doc.text(reasonText, m + 14, y);
 
-    // Percentage on right
     doc.setFontSize(20);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(80, 80, 80);
     doc.text("<1%", pw - m - 15, y + 1);
 
-    // Type label
     y += 6;
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
@@ -279,7 +327,7 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
     doc.line(m, y - 3, pw - m, y - 3);
   });
 
-  // Exclude settings after primary sources
+  // Exclude settings
   y += 10;
   addPageIfNeeded(20);
   doc.setDrawColor(200, 200, 200);
@@ -322,7 +370,6 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
     addPageIfNeeded(40);
     const color = sourceColors[i % sourceColors.length];
 
-    // Numbered badge
     doc.setFillColor(color[0], color[1], color[2]);
     doc.roundedRect(m, y - 4, 9, 9, 1.5, 1.5, "F");
     doc.setFontSize(9);
@@ -331,14 +378,12 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
     const numStr = `${i + 1}`;
     doc.text(numStr, m + 4.5 - doc.getTextWidth(numStr) / 2, y + 1.5);
 
-    // Source name
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(color[0], color[1], color[2]);
     const reasonFull = section.reason.length > 70 ? section.reason.slice(0, 70) + "..." : section.reason;
     doc.text(reasonFull, m + 14, y);
 
-    // Type tag on right
     const typeTag = section.risk === "high" ? "Internet Source" : section.risk === "medium" ? "Publication" : "Student Paper";
     doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
@@ -351,7 +396,6 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
 
     y += 8;
 
-    // Flagged text excerpt
     doc.setFontSize(8);
     doc.setFont("helvetica", "italic");
     doc.setTextColor(100, 100, 100);
@@ -390,7 +434,6 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
   doc.line(m, y, pw - m, y);
   y += 10;
 
-  // Final Grade / General Comments
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(120, 120, 120);
@@ -408,7 +451,6 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
   doc.setLineWidth(0.2);
   y += 8;
 
-  // Page list
   const pageCount = Math.ceil(wordCount / 350);
   for (let p = 1; p <= Math.min(pageCount, 10); p++) {
     doc.setFontSize(9);
@@ -421,20 +463,24 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
     y += 8;
   }
 
-  // ─── APPLY BORDERS, HEADERS & FOOTERS TO ALL PAGES ───
+  // ─── APPLY HEADERS, FOOTERS & BORDERS (only text pages get border) ───
   const totalPages = doc.getNumberOfPages();
-  const sectionNames = ["Cover Page", "Highlighted Text", "Originality Report", "Source Details", "GradeMark Report"];
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
-    drawPageBorder();
-    // Determine section name based on page number
+
+    // Only draw border on uploaded text pages
+    if (textPages.has(p)) {
+      drawTextPageBorder();
+    }
+
+    // Determine section name
     let section = "Similarity Report";
-    if (p === 1) section = sectionNames[0];
-    else if (p === totalPages) section = sectionNames[4];
-    else if (p === totalPages - 1) section = sectionNames[3];
-    else if (p === totalPages - 2) section = sectionNames[2];
-    else section = sectionNames[1];
-    
+    if (p === 1) section = "Cover Page";
+    else if (textPages.has(p)) section = "Document Text";
+    else if (p === totalPages) section = "GradeMark Report";
+    else if (p === totalPages - 1) section = "Source Details";
+    else section = "Originality Report";
+
     if (p > 1) {
       drawHeader(p, totalPages, section);
     }
