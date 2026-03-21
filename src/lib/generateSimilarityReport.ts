@@ -80,7 +80,7 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(140, 140, 140);
-    doc.text("PlagiaShield Similarity Report", m, fy + 8);
+    doc.text("Turnitin Similarity Report", m, fy + 8);
     doc.text(`Page ${pageNum} of ${totalPages}`, pw - m - 25, fy + 8);
   };
 
