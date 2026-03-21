@@ -63,7 +63,7 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(50, 50, 50);
-    doc.text("PlagiaShield", m, 18);
+    doc.text("Turnitin", m, 18);
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(120, 120, 120);
