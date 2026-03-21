@@ -125,15 +125,20 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
     y += 6;
   });
 
-  // ─── PAGES 2+: TEXT WITH HIGHLIGHTED MATCHES (ACADEMIC FORMAT) ───
-  // A4: 210 x 297 mm. Margins: left/right = 2in (50.8mm), top/bottom = 1.5in (38.1mm)
-  const textMarginLR = 50.8;
-  const textMarginTop = 38.1;
-  const textMarginBottom = 38.1;
+  // ─── PAGES 2+: TEXT WITH HIGHLIGHTED MATCHES (ACADEMIC BOXED FORMAT) ───
+  // A4: 210 x 297 mm
+  // Outer box: 38mm from each side LR, 30mm from TB
+  // Inner padding inside box: ~0.8in (20mm)
+  const boxX = 38;
+  const boxY = 30;
+  const boxPad = 20; // internal padding inside the bordered box
+  const textMarginLR = boxX + boxPad;
+  const textMarginTop = boxY + boxPad;
+  const textMarginBottom = boxY + boxPad;
   const textMaxW = pw - textMarginLR * 2;
   const textContentTop = textMarginTop;
   const textContentBottom = ph - textMarginBottom;
-  const textLineHeight = 7.2; // ~1.5 line spacing at 12pt (12 * 1.5 * 0.3528mm ≈ 6.35, rounded up for readability)
+  const textLineHeight = 7.2; // ~1.5 line spacing at 12pt
   const textFontSize = 12;
 
   const addTextPageIfNeeded = (needed: number) => {
