@@ -126,19 +126,22 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
   });
 
   // ─── PAGES 2+: TEXT WITH HIGHLIGHTED MATCHES (ACADEMIC BOXED FORMAT) ───
-  // A4: 210 x 297 mm
-  // Outer box: 38mm from each side LR, 30mm from TB
-  // Inner padding inside box: ~0.8in (20mm)
-  const boxX = 38;
+  // A4: 210 × 297 mm
+  // Outer margins: L/R=35mm, T/B=30mm → Box: 140×230mm centered
+  // Inner padding: T/B=22mm, L/R=20mm → Text area: ~100mm wide
+  const boxX = 35;
   const boxY = 30;
-  const boxPad = 20; // internal padding inside the bordered box
-  const textMarginLR = boxX + boxPad;
-  const textMarginTop = boxY + boxPad;
-  const textMarginBottom = boxY + boxPad;
-  const textMaxW = pw - textMarginLR * 2;
+  const boxW = 140;
+  const boxH = 230;
+  const padLR = 20;  // inner padding left/right
+  const padTB = 22;  // inner padding top/bottom
+  const textMarginLR = boxX + padLR;
+  const textMarginTop = boxY + padTB;
+  const textMarginBottom = boxY + boxH - padTB; // bottom edge of usable area
+  const textMaxW = boxW - padLR * 2; // ~100mm text width
   const textContentTop = textMarginTop;
-  const textContentBottom = ph - textMarginBottom;
-  const textLineHeight = 7.2; // ~1.5 line spacing at 12pt
+  const textContentBottom = textMarginBottom;
+  const textLineHeight = 7.2; // 1.5 line spacing at 12pt
   const textFontSize = 12;
 
   const addTextPageIfNeeded = (needed: number) => {
