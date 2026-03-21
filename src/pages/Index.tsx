@@ -51,7 +51,7 @@ export default function Index() {
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <Shield className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="text-lg font-semibold text-foreground tracking-tight">PlagiaShield</span>
+            <span className="text-lg font-semibold text-foreground tracking-tight">Turnitin</span>
           </Link>
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
