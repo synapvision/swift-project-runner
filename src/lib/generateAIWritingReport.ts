@@ -47,7 +47,7 @@ export function generateAIWritingReport(report: PlagiarismReport, text: string, 
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(24, 60, 80);
-    doc.text("PlagiaShield", m, 12);
+    doc.text("Turnitin", m, 12);
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100, 100, 100);
