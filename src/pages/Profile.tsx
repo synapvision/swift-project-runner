@@ -21,7 +21,7 @@ export default function Profile() {
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
               <Shield className="w-3.5 h-3.5 text-primary-foreground" />
             </div>
-            <span className="font-semibold text-foreground text-sm">PlagiaShield</span>
+            <span className="font-semibold text-foreground text-sm">Turnitin</span>
           </Link>
         </div>
         <Button variant="ghost" size="sm" asChild className="text-muted-foreground">

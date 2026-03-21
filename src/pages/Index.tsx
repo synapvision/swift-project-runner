@@ -163,10 +163,10 @@ export default function Index() {
             <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
               <Shield className="w-3 h-3 text-primary-foreground" />
             </div>
-            <span className="text-sm font-medium text-foreground">PlagiaShield</span>
+            <span className="text-sm font-medium text-foreground">Turnitin</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} PlagiaShield. Write with integrity.
+            © {new Date().getFullYear()} Turnitin. Write with integrity.
           </p>
           <div className="flex gap-6">
             <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Privacy</a>

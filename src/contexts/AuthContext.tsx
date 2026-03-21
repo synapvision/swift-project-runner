@@ -39,8 +39,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       setLoading(false);
 
-      // Redirect to dashboard on SIGNED_IN event when on a public route
-      if (event === "SIGNED_IN" && session && !hadSessionRef.current) {
+      // Redirect to dashboard on sign-in events when on a public route
+      if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session) {
         if (PUBLIC_ROUTES.includes(locationRef.current)) {
           setTimeout(() => navigate("/dashboard"), 0);
         }
@@ -53,8 +53,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      hadSessionRef.current = !!session;
       setLoading(false);
+
+      // If already has session and on a public route, redirect
+      if (session && PUBLIC_ROUTES.includes(locationRef.current)) {
+        navigate("/dashboard");
+      }
+      hadSessionRef.current = !!session;
     });
 
     return () => subscription.unsubscribe();
