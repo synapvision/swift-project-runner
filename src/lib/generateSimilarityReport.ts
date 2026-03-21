@@ -53,14 +53,14 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
 
   // ─── HEADER / FOOTER / BORDER HELPERS ───
   const drawTextPageBorder = () => {
-    // Outer margins: ~1.5in LR, ~1.2in TB → box inset from page edges
-    const boxX = 38; // ~1.5 inches from left
-    const boxY = 30; // ~1.2 inches from top
-    const boxW = pw - boxX * 2;
-    const boxH = ph - boxY * 2;
-    doc.setDrawColor(80, 80, 80);
-    doc.setLineWidth(0.5);
-    doc.rect(boxX, boxY, boxW, boxH);
+    // Outer margins: L/R=35mm, T/B=30mm → centered box 140×230mm
+    const bx = 35;
+    const by = 30;
+    const bw = 140; // 5.5 inches
+    const bh = 230; // ~9 inches (fits A4 297 - 30*2 = 237, using 230 for clean look)
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.35); // thin black line ~0.5-1pt
+    doc.rect(bx, by, bw, bh);
     doc.setLineWidth(0.2);
   };
 
@@ -126,19 +126,22 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
   });
 
   // ─── PAGES 2+: TEXT WITH HIGHLIGHTED MATCHES (ACADEMIC BOXED FORMAT) ───
-  // A4: 210 x 297 mm
-  // Outer box: 38mm from each side LR, 30mm from TB
-  // Inner padding inside box: ~0.8in (20mm)
-  const boxX = 38;
+  // A4: 210 × 297 mm
+  // Outer margins: L/R=35mm, T/B=30mm → Box: 140×230mm centered
+  // Inner padding: T/B=22mm, L/R=20mm → Text area: ~100mm wide
+  const boxX = 35;
   const boxY = 30;
-  const boxPad = 20; // internal padding inside the bordered box
-  const textMarginLR = boxX + boxPad;
-  const textMarginTop = boxY + boxPad;
-  const textMarginBottom = boxY + boxPad;
-  const textMaxW = pw - textMarginLR * 2;
+  const boxW = 140;
+  const boxH = 230;
+  const padLR = 20;  // inner padding left/right
+  const padTB = 22;  // inner padding top/bottom
+  const textMarginLR = boxX + padLR;
+  const textMarginTop = boxY + padTB;
+  const textMarginBottom = boxY + boxH - padTB; // bottom edge of usable area
+  const textMaxW = boxW - padLR * 2; // ~100mm text width
   const textContentTop = textMarginTop;
-  const textContentBottom = ph - textMarginBottom;
-  const textLineHeight = 7.2; // ~1.5 line spacing at 12pt
+  const textContentBottom = textMarginBottom;
+  const textLineHeight = 7.2; // 1.5 line spacing at 12pt
   const textFontSize = 12;
 
   const addTextPageIfNeeded = (needed: number) => {
