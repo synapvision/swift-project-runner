@@ -539,5 +539,5 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
     drawFooter(p, totalPages);
   }
 
-  doc.save("PlagiaShield_Similarity_Report.pdf");
+  doc.save("Turnitin_Similarity_Report.pdf");
 }

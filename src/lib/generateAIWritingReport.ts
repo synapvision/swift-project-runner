@@ -283,5 +283,5 @@ export function generateAIWritingReport(report: PlagiarismReport, text: string, 
     drawFooter(p, totalPages, section);
   }
 
-  doc.save("PlagiaShield_AI_Writing_Report.pdf");
+  doc.save("Turnitin_AI_Writing_Report.pdf");
 }
