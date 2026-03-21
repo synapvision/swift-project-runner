@@ -53,9 +53,14 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
 
   // ─── HEADER / FOOTER / BORDER HELPERS ───
   const drawTextPageBorder = () => {
-    doc.setDrawColor(160, 160, 160);
-    doc.setLineWidth(0.4);
-    doc.rect(borderM, borderM, pw - borderM * 2, ph - borderM * 2);
+    // Outer margins: ~1.5in LR, ~1.2in TB → box inset from page edges
+    const boxX = 38; // ~1.5 inches from left
+    const boxY = 30; // ~1.2 inches from top
+    const boxW = pw - boxX * 2;
+    const boxH = ph - boxY * 2;
+    doc.setDrawColor(80, 80, 80);
+    doc.setLineWidth(0.5);
+    doc.rect(boxX, boxY, boxW, boxH);
     doc.setLineWidth(0.2);
   };
 
