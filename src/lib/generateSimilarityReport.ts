@@ -120,10 +120,27 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
     y += 6;
   });
 
-  // ─── PAGES 2+: TEXT WITH HIGHLIGHTED MATCHES (STRUCTURED) ───
+  // ─── PAGES 2+: TEXT WITH HIGHLIGHTED MATCHES (ACADEMIC FORMAT) ───
+  // A4: 210 x 297 mm. Margins: left/right = 2in (50.8mm), top/bottom = 1.5in (38.1mm)
+  const textMarginLR = 50.8;
+  const textMarginTop = 38.1;
+  const textMarginBottom = 38.1;
+  const textMaxW = pw - textMarginLR * 2;
+  const textContentTop = textMarginTop;
+  const textContentBottom = ph - textMarginBottom;
+  const textLineHeight = 7.2; // ~1.5 line spacing at 12pt (12 * 1.5 * 0.3528mm ≈ 6.35, rounded up for readability)
+  const textFontSize = 12;
+
+  const addTextPageIfNeeded = (needed: number) => {
+    if (y + needed > textContentBottom) {
+      doc.addPage();
+      y = textContentTop;
+    }
+  };
+
   doc.addPage();
   const textStartPage = doc.getNumberOfPages();
-  y = contentTop;
+  y = textContentTop;
 
   const textToRender = text.slice(0, 50000);
 
@@ -145,7 +162,6 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
 
   // Split text into paragraphs for structured rendering
   const paragraphs = textToRender.split(/\n\s*\n|\n/);
-  const lineHeight = 5;
   let globalCharPos = 0;
 
   paragraphs.forEach((para, paraIdx) => {
@@ -155,75 +171,111 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
       return;
     }
 
-    // Check if paragraph looks like a heading (short, no period at end, or all caps)
+    // Check if paragraph looks like a heading (short, no period at end)
     const isHeading = trimmedPara.length < 80 && !trimmedPara.endsWith(".") && !trimmedPara.endsWith(",");
 
     if (paraIdx > 0) {
       // Paragraph spacing
-      y += isHeading ? 10 : 6;
-      addPageIfNeeded(lineHeight + 4);
+      y += isHeading ? textLineHeight * 2 : textLineHeight;
+      addTextPageIfNeeded(textLineHeight + 4);
     }
 
     if (isHeading) {
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
+      doc.setFontSize(textFontSize);
+      doc.setFont("times", "bold");
     } else {
-      doc.setFontSize(9.5);
-      doc.setFont("helvetica", "normal");
+      doc.setFontSize(textFontSize);
+      doc.setFont("times", "normal");
     }
 
-    // Render paragraph word by word with highlights
-    const words = trimmedPara.split(/(\s+)/);
-    let lineX = m;
-    const paraStartCharPos = textToRender.indexOf(trimmedPara, Math.max(0, globalCharPos - 5));
-    let charPos = paraStartCharPos >= 0 ? paraStartCharPos : globalCharPos;
+    // For headings, render centered
+    if (isHeading) {
+      const headingLines = doc.splitTextToSize(trimmedPara, textMaxW);
+      const paraStartCharPos = textToRender.indexOf(trimmedPara, Math.max(0, globalCharPos - 5));
+      let charPos = paraStartCharPos >= 0 ? paraStartCharPos : globalCharPos;
 
-    words.forEach((word) => {
-      const wordStart = charPos;
-      const wordEnd = charPos + word.length;
-      charPos = wordEnd;
+      headingLines.forEach((line: string) => {
+        addTextPageIfNeeded(textLineHeight);
+        const lineW = doc.getTextWidth(line);
+        const centerX = textMarginLR + textMaxW / 2 - lineW / 2;
 
-      if (word.match(/^\s+$/)) {
-        lineX += doc.getTextWidth(" ");
-        return;
-      }
+        // Check highlights for this line
+        const lineStart = charPos;
+        const lineEnd = charPos + line.length;
+        const hl = highlights.find((h) => lineStart < h.end && lineEnd > h.start);
 
-      const wordW = doc.getTextWidth(word);
-      if (lineX + wordW > pw - m) {
-        lineX = m;
-        y += lineHeight;
-        addPageIfNeeded(lineHeight + 2);
-      }
-
-      const hl = highlights.find((h) => wordStart < h.end && wordEnd > h.start);
-      if (hl) {
-        doc.setFillColor(hl.color[0], hl.color[1], hl.color[2]);
-        doc.setGState(new (doc as any).GState({ opacity: 0.12 }));
-        doc.rect(lineX - 0.3, y - 3.5, wordW + 0.6, 4.5, "F");
-        doc.setGState(new (doc as any).GState({ opacity: 1 }));
-
-        doc.setTextColor(hl.color[0], hl.color[1], hl.color[2]);
-        if (isHeading) {
-          doc.setFont("helvetica", "bold");
+        if (hl) {
+          doc.setTextColor(hl.color[0], hl.color[1], hl.color[2]);
         } else {
-          doc.setFont("helvetica", "normal");
+          doc.setTextColor(50, 50, 50);
         }
-        doc.text(word, lineX, y);
-      } else {
-        doc.setTextColor(50, 50, 50);
-        if (isHeading) {
-          doc.setFont("helvetica", "bold");
+        doc.text(line, centerX, y);
+        charPos += line.length;
+        y += textLineHeight;
+      });
+    } else {
+      // Body text: justified, word-by-word rendering
+      const words = trimmedPara.split(/(\s+)/);
+      const paraStartCharPos = textToRender.indexOf(trimmedPara, Math.max(0, globalCharPos - 5));
+      let charPos = paraStartCharPos >= 0 ? paraStartCharPos : globalCharPos;
+
+      // Build lines for justified rendering
+      const lines: { words: { text: string; start: number; end: number }[] }[] = [];
+      let currentLine: { text: string; start: number; end: number }[] = [];
+      let currentLineWidth = 0;
+      const spaceWidth = doc.getTextWidth(" ");
+
+      words.forEach((word) => {
+        const wordStart = charPos;
+        const wordEnd = charPos + word.length;
+        charPos = wordEnd;
+
+        if (word.match(/^\s+$/)) return;
+
+        const wordW = doc.getTextWidth(word);
+        if (currentLine.length > 0 && currentLineWidth + spaceWidth + wordW > textMaxW) {
+          lines.push({ words: [...currentLine] });
+          currentLine = [{ text: word, start: wordStart, end: wordEnd }];
+          currentLineWidth = wordW;
         } else {
-          doc.setFont("helvetica", "normal");
+          if (currentLine.length > 0) currentLineWidth += spaceWidth;
+          currentLine.push({ text: word, start: wordStart, end: wordEnd });
+          currentLineWidth += wordW;
         }
-        doc.text(word, lineX, y);
-      }
+      });
+      if (currentLine.length > 0) lines.push({ words: [...currentLine] });
 
-      lineX += wordW + doc.getTextWidth(" ");
-    });
+      // Render each line with justification
+      lines.forEach((line, lineIdx) => {
+        addTextPageIfNeeded(textLineHeight);
+        const isLastLine = lineIdx === lines.length - 1;
+        const totalWordWidth = line.words.reduce((sum, w) => sum + doc.getTextWidth(w.text), 0);
+        const gaps = line.words.length - 1;
+        // Justify all lines except the last one
+        const gapWidth = (!isLastLine && gaps > 0) ? (textMaxW - totalWordWidth) / gaps : spaceWidth;
 
-    // Move to next line after paragraph
-    y += lineHeight;
+        let lineX = textMarginLR;
+        line.words.forEach((w) => {
+          const wordW = doc.getTextWidth(w.text);
+          const hl = highlights.find((h) => w.start < h.end && w.end > h.start);
+
+          if (hl) {
+            doc.setFillColor(hl.color[0], hl.color[1], hl.color[2]);
+            doc.setGState(new (doc as any).GState({ opacity: 0.12 }));
+            doc.rect(lineX - 0.3, y - 3.8, wordW + 0.6, 5, "F");
+            doc.setGState(new (doc as any).GState({ opacity: 1 }));
+            doc.setTextColor(hl.color[0], hl.color[1], hl.color[2]);
+          } else {
+            doc.setTextColor(50, 50, 50);
+          }
+          doc.setFont("times", "normal");
+          doc.text(w.text, lineX, y);
+          lineX += wordW + gapWidth;
+        });
+        y += textLineHeight;
+      });
+    }
+
     globalCharPos += para.length + 1;
   });
 
