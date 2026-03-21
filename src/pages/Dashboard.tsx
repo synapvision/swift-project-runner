@@ -150,7 +150,7 @@ export default function Dashboard() {
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
               <Shield className="w-3.5 h-3.5 text-primary-foreground" />
             </div>
-            <span className="font-semibold text-foreground text-sm hidden sm:inline">PlagiaShield</span>
+            <span className="font-semibold text-foreground text-sm hidden sm:inline">Turnitin</span>
           </Link>
         </div>
         <div className="flex items-center gap-2">
