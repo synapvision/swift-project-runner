@@ -65,7 +65,7 @@ export function generateAIWritingReport(report: PlagiarismReport, text: string, 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100, 100, 100);
-    doc.text("PlagiaShield", m, ph - 8);
+    doc.text("Turnitin", m, ph - 8);
     doc.text(`Page ${pageNum} of ${totalPages} - ${sectionName}`, m + 40, ph - 8);
     doc.text(`Submission ID   ${submissionId}`, pw - m - 60, ph - 8);
   };
