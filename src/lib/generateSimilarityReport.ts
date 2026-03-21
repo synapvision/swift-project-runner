@@ -94,7 +94,7 @@ export function generateSimilarityReport(report: PlagiarismReport, text: string,
   doc.setFontSize(12);
   doc.setFont("helvetica", "italic");
   doc.setTextColor(120, 120, 120);
-  doc.text("by PlagiaShield", pw / 2, y, { align: "center" });
+  doc.text("by Turnitin", pw / 2, y, { align: "center" });
 
   // Bottom details
   y = ph - 100;
